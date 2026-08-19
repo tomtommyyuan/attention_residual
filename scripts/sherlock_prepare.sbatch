@@ -17,6 +17,9 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
   .venv/bin/pip install --upgrade pip
 fi
+# torch pinned to the cu124 index: node drivers are 550-series (CUDA 12.4);
+# default PyPI torch ships CUDA-13 builds that need driver >= 580
+.venv/bin/pip install --only-binary :all: torch --index-url https://download.pytorch.org/whl/cu124
 # wheels only: HPC nodes lack build toolchains (Rust/Go/C++), and old-glibc
 # nodes reject manylinux_2_28 wheels -- let pip resolve to older wheel versions
 .venv/bin/pip install --only-binary :all: -r requirements.txt

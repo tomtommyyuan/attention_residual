@@ -18,6 +18,9 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
   .venv/bin/pip install --upgrade pip
 fi
+# torch pinned to the cu124 index: cluster drivers are 550-series (CUDA 12.4),
+# and the default PyPI torch now ships CUDA-13 builds that need driver >= 580
+.venv/bin/pip install --only-binary :all: torch --index-url https://download.pytorch.org/whl/cu124
 .venv/bin/pip install --only-binary :all: -r requirements.txt
 .venv/bin/pytest tests/ -q
 .venv/bin/python data/prepare_fineweb_edu.py --nproc "${SLURM_CPUS_PER_TASK}"
