@@ -1,0 +1,38 @@
+# Ablation: remove the RMSNorm applied to depth-attention keys.
+# The paper reports this hurts: without it, large-magnitude layers dominate the softmax.
+model:
+  vocab_size: 50304
+  n_layer: 12
+  n_head: 12
+  dim: 768
+  ffn_dim: 2048
+  seq_len: 2048
+  rope_theta: 10000.0
+  residual_mode: attnres
+  depth_attn_kernel: softmax
+  depth_attn_key_norm: false
+  tie_embeddings: true
+  init_std: 0.02
+
+train:
+  run_name: attnres_124m_no_keynorm
+  out_dir: out
+  data_dir: data/fineweb_edu
+  seed: 1337
+  micro_batch_size: 16
+  grad_accum_steps: 4
+  max_steps: 4800
+  lr: 6.0e-4
+  min_lr_ratio: 0.1
+  warmup_steps: 200
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  eval_every: 250
+  eval_tokens: 10485760
+  checkpoint_every: 1200
+  log_every: 10
+  wandb: false
+  wandb_project: attnres
+  compile: false

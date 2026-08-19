@@ -1,0 +1,39 @@
+# Control arm: standard PreNorm residual connections.
+# Compare against attnres_124m.yaml with the SAME seed and world size so that
+# initialization and data order are identical between the two runs.
+model:
+  vocab_size: 50304        # GPT-2 BPE (50257) padded up to a multiple of 128
+  n_layer: 12
+  n_head: 12
+  dim: 768
+  ffn_dim: 2048            # SwiGLU hidden size = 8/3 * dim
+  seq_len: 2048
+  rope_theta: 10000.0
+  residual_mode: standard  # standard | attnres
+  depth_attn_kernel: softmax
+  depth_attn_key_norm: true
+  tie_embeddings: true
+  init_std: 0.02
+
+train:
+  run_name: baseline_124m
+  out_dir: out
+  data_dir: data/fineweb_edu
+  seed: 1337
+  micro_batch_size: 16
+  grad_accum_steps: 4      # global batch = 16 seq * 2048 tok * 4 GPUs * 4 = 524,288 tokens
+  max_steps: 4800          # ~2.5B tokens total
+  lr: 6.0e-4
+  min_lr_ratio: 0.1
+  warmup_steps: 200
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  eval_every: 250
+  eval_tokens: 10485760    # ~10M tokens per validation pass
+  checkpoint_every: 1200
+  log_every: 10
+  wandb: false
+  wandb_project: attnres
+  compile: false

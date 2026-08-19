@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+data/fineweb_edu/
+data/fineweb_*/
+out/
+wandb/
+.pytest_cache/
+.DS_Store
+slurm-*.out
+*.pt
