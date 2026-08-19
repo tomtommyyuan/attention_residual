@@ -19,6 +19,7 @@ import argparse
 import json
 import multiprocessing as mp
 import os
+import sys
 
 import numpy as np
 import tiktoken
@@ -121,6 +122,12 @@ def main():
     with open(os.path.join(args.out_dir, "meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
     print("done")
+    sys.stdout.flush()
+    # HF streaming's background prefetch threads can abort Python during
+    # interpreter finalization (PyGILState_Release) AFTER everything is
+    # written, turning a successful run into a non-zero exit that kills
+    # sbatch afterok dependency chains -- skip finalization entirely.
+    os._exit(0)
 
 
 if __name__ == "__main__":
