@@ -14,6 +14,7 @@
 #SBATCH -o slurm-%j.out
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR}"
+export PYTHONUNBUFFERED=1   # stdout is block-buffered under slurm redirection
 CONFIG="${1:?usage: sbatch scripts/slurm_train.sbatch <config.yaml> [overrides...]}"
 shift
 export HF_HOME="/hai/scratch/${USER}/hf_cache"

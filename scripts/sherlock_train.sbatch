@@ -19,6 +19,7 @@
 #SBATCH -o slurm-%j.out
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR}"
+export PYTHONUNBUFFERED=1   # stdout is block-buffered under slurm redirection
 CONFIG="${1:?usage: sbatch scripts/sherlock_train.sbatch <config.yaml> [overrides...]}"
 shift
 ml python/3.12.1
