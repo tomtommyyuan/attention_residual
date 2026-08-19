@@ -22,13 +22,21 @@ shift
 export XDG_CACHE_HOME="/lfs/local/0/${USER}/.cache"
 export PIP_CACHE_DIR="/lfs/local/0/${USER}/.cache/pip"
 export HF_HOME="/lfs/local/0/${USER}/.cache/huggingface"
-VENV="/lfs/local/0/${USER}/venvs/attnres"
+# pick the torch build to match the allocated GPU: B200 (sm_100) needs the
+# CUDA-13 torch from PyPI (drivers 580+); older cards run cu124 wheels
+if nvidia-smi -L 2>/dev/null | grep -q "B200"; then
+  VENV="/lfs/local/0/${USER}/venvs/attnres-cu13"
+  TORCH_SPEC=(torch)
+else
+  VENV="/lfs/local/0/${USER}/venvs/attnres"
+  TORCH_SPEC=(torch --index-url https://download.pytorch.org/whl/cu124)
+fi
 PY=$(command -v python3.12 || command -v python3.11 || command -v python3.10 || command -v python3)
 if [ ! -d "${VENV}" ]; then
   "${PY}" -m venv "${VENV}"
   "${VENV}/bin/pip" install --upgrade pip
 fi
-"${VENV}/bin/pip" install --only-binary :all: torch --index-url https://download.pytorch.org/whl/cu124
+"${VENV}/bin/pip" install --only-binary :all: "${TORCH_SPEC[@]}"
 "${VENV}/bin/pip" install --only-binary :all: -r requirements.txt
 
 "${VENV}/bin/torchrun" --standalone --nproc_per_node=4 train.py --config "${CONFIG}" "$@"
