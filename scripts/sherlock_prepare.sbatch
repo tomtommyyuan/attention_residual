@@ -17,6 +17,8 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
   .venv/bin/pip install --upgrade pip
 fi
-.venv/bin/pip install -r requirements.txt
+# wheels only: HPC nodes lack build toolchains (Rust/Go/C++), and old-glibc
+# nodes reject manylinux_2_28 wheels -- let pip resolve to older wheel versions
+.venv/bin/pip install --only-binary :all: -r requirements.txt
 .venv/bin/pytest tests/ -q
 .venv/bin/python data/prepare_fineweb_edu.py --nproc "${SLURM_CPUS_PER_TASK}"

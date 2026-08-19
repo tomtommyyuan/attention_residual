@@ -18,6 +18,6 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
   .venv/bin/pip install --upgrade pip
 fi
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install --only-binary :all: -r requirements.txt
 .venv/bin/pytest tests/ -q
 .venv/bin/python data/prepare_fineweb_edu.py --nproc "${SLURM_CPUS_PER_TASK}"
