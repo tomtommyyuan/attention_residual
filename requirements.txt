@@ -5,4 +5,5 @@ datasets
 pyyaml
 matplotlib
 pytest
-wandb
+# optional -- metrics dashboard; source builds need modern Go, so wheels only:
+#   pip install --only-binary :all: wandb
