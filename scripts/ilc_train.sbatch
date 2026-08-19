@@ -39,4 +39,7 @@ fi
 "${VENV}/bin/pip" install --only-binary :all: "${TORCH_SPEC[@]}"
 "${VENV}/bin/pip" install --only-binary :all: -r requirements.txt
 
-"${VENV}/bin/torchrun" --standalone --nproc_per_node=4 train.py --config "${CONFIG}" "$@"
+# world size follows the actual allocation, so `--gres=gpu:<type>:2` jobs work
+# (keep the GLOBAL batch fixed across compared runs: world * grad_accum = const)
+NPROC="${SLURM_GPUS_ON_NODE:-4}"
+"${VENV}/bin/torchrun" --standalone --nproc_per_node="${NPROC}" train.py --config "${CONFIG}" "$@"
