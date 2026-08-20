@@ -1,0 +1,147 @@
+{
+  "k": 8,
+  "batches": 4,
+  "pairs": [
+    {
+      "pair": "attnres_124m/latest vs attnres_124m_s42/latest",
+      "topk_overlap_all": 0.8807,
+      "topk_overlap_deep": 0.8269,
+      "tv_all": 0.1547,
+      "tv_deep": 0.164,
+      "consumers": [
+        {
+          "consumer": 3,
+          "sources": 4,
+          "topk_overlap": 1.0,
+          "tv": 0.0166
+        },
+        {
+          "consumer": 4,
+          "sources": 5,
+          "topk_overlap": 1.0,
+          "tv": 0.0999
+        },
+        {
+          "consumer": 5,
+          "sources": 6,
+          "topk_overlap": 1.0,
+          "tv": 0.0443
+        },
+        {
+          "consumer": 6,
+          "sources": 7,
+          "topk_overlap": 1.0,
+          "tv": 0.0932
+        },
+        {
+          "consumer": 7,
+          "sources": 8,
+          "topk_overlap": 1.0,
+          "tv": 0.112
+        },
+        {
+          "consumer": 8,
+          "sources": 9,
+          "topk_overlap": 0.875,
+          "tv": 0.3339
+        },
+        {
+          "consumer": 9,
+          "sources": 10,
+          "topk_overlap": 1.0,
+          "tv": 0.1713
+        },
+        {
+          "consumer": 10,
+          "sources": 11,
+          "topk_overlap": 0.875,
+          "tv": 0.1535
+        },
+        {
+          "consumer": 11,
+          "sources": 12,
+          "topk_overlap": 0.875,
+          "tv": 0.2475
+        },
+        {
+          "consumer": 12,
+          "sources": 13,
+          "topk_overlap": 0.875,
+          "tv": 0.0895
+        },
+        {
+          "consumer": 13,
+          "sources": 14,
+          "topk_overlap": 0.875,
+          "tv": 0.112
+        },
+        {
+          "consumer": 14,
+          "sources": 15,
+          "topk_overlap": 0.875,
+          "tv": 0.123
+        },
+        {
+          "consumer": 15,
+          "sources": 16,
+          "topk_overlap": 0.625,
+          "tv": 0.1571
+        },
+        {
+          "consumer": 16,
+          "sources": 17,
+          "topk_overlap": 1.0,
+          "tv": 0.2403
+        },
+        {
+          "consumer": 17,
+          "sources": 18,
+          "topk_overlap": 0.875,
+          "tv": 0.2396
+        },
+        {
+          "consumer": 18,
+          "sources": 19,
+          "topk_overlap": 0.75,
+          "tv": 0.2563
+        },
+        {
+          "consumer": 19,
+          "sources": 20,
+          "topk_overlap": 0.875,
+          "tv": 0.1674
+        },
+        {
+          "consumer": 20,
+          "sources": 21,
+          "topk_overlap": 0.75,
+          "tv": 0.1818
+        },
+        {
+          "consumer": 21,
+          "sources": 22,
+          "topk_overlap": 0.875,
+          "tv": 0.1181
+        },
+        {
+          "consumer": 22,
+          "sources": 23,
+          "topk_overlap": 0.875,
+          "tv": 0.1479
+        },
+        {
+          "consumer": 23,
+          "sources": 24,
+          "topk_overlap": 0.75,
+          "tv": 0.1403
+        },
+        {
+          "consumer": 24,
+          "sources": 25,
+          "topk_overlap": 0.75,
+          "tv": 0.1583
+        }
+      ]
+    }
+  ]
+}
