@@ -62,22 +62,24 @@ def main():
         xs, ys = read_curve(run_dir, args.metric)
         assert xs, f"no {args.metric!r} records in {run_dir}/log.jsonl"
         ax.plot(xs, ys, color=SERIES[i], linewidth=2, label=label)
-        # selective direct label at the line end, in text ink (identity is
-        # carried by the adjacent colored line, not by colored text)
-        ax.annotate(
-            f" {label}: {ys[-1]:.4f}",
-            xy=(xs[-1], ys[-1]),
-            fontsize=9,
-            color=INK,
-            va="center",
-        )
         finals.append((label, xs[-1], ys[-1]))
+
+    # end-of-line labels in text ink (identity is carried by the adjacent
+    # colored line), staggered so near-equal finals stay readable
+    ax.margins(x=0.12)
+    ymin, ymax = ax.get_ylim()
+    min_sep = (ymax - ymin) * 0.04
+    prev_y = None
+    for i in sorted(range(len(finals)), key=lambda j: finals[j][2]):
+        label, x_end, y_end = finals[i]
+        y_lab = y_end if prev_y is None else max(y_end, prev_y + min_sep)
+        prev_y = y_lab
+        ax.annotate(f" {label}: {y_end:.4f}", xy=(x_end, y_lab), fontsize=9, color=INK, va="center")
 
     ax.set_xlabel("training tokens", color=MUTED)
     ax.set_ylabel(args.metric.replace("_", " "), color=MUTED)
     ax.set_title(f"{args.metric.replace('_', ' ')} vs tokens", color=INK, fontsize=11)
     ax.legend(frameon=False, labelcolor=INK, fontsize=9)
-    ax.margins(x=0.12)  # room for the end-of-line labels
     fig.tight_layout()
     fig.savefig(args.out, dpi=200)
 
