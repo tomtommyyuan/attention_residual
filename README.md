@@ -161,6 +161,9 @@ norms (more uniform under AttnRes).
 
 ## Roadmap
 
+The full research plan (Sparse+Sink design, phase gates, venue targets) lives
+in [PLAN.md](PLAN.md).
+
 - [ ] **Fused Triton kernel for the depth-attention op** — top priority now
       that the naive implementation measures 6.6× step time at 124M
 - [ ] Third seed pair (the +0.0045 seed-42 gap needs it)
