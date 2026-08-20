@@ -93,6 +93,21 @@ All run on ILC from existing checkpoints. Tool: `analysis/wiring_stability.py`.
 3. Implement Sparse+Sink behind a config flag; extend equivalence tests.
 4. Queue Phase B runs.
 
+## Phase B interim results (2026-08-21)
+
+- **sparse_sink k=4: val 3.2547** (baseline 3.2664, Full 3.2453; gate ≤3.253).
+  Beats baseline by 0.0117 nats = recovers **55% of Full's gain** while its
+  wiring captures ~57% of attention mass — an almost linear mass→gain
+  correspondence. Testable prediction: k=8 (~80% mass) → val ≈ 3.250 → pass.
+  k=8 run queued.
+- **Speed**: torch.compile lifts baseline 411k→700k tok/s (54% MFU!) and
+  sparse k4 168k→348k. Compiled-vs-compiled ratio **2.0×** (eager was 2.45×;
+  gate 1.4× not yet met). Remaining cost: fp32-promoted candidate stream +
+  unfused per-consumer op chains → next: bf16 candidate stream (fp32 softmax
+  kept) + fused Triton kernel (Phase D pulled forward).
+- Decision: science arms stay eager/uncompiled for comparability until the
+  kernel lands; then re-baseline everything compiled in Phase C.
+
 ## Phase A results (2026-08-20, k=8, deep band = S≥13; raw: wiring_A*.json)
 
 | Exp | Key numbers | Verdict vs decision rule |
