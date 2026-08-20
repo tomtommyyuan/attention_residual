@@ -93,6 +93,15 @@ All run on ILC from existing checkpoints. Tool: `analysis/wiring_stability.py`.
 3. Implement Sparse+Sink behind a config flag; extend equivalence tests.
 4. Queue Phase B runs.
 
-## Phase A results
+## Phase A results (2026-08-20, k=8, deep band = S≥13; raw: wiring_A*.json)
 
-(to be filled)
+| Exp | Key numbers | Verdict vs decision rule |
+|---|---|---|
+| A1 cross-seed | deep overlap **0.827**, all 0.881; worst deep consumer 0.625; tv_deep 0.164 | **PASS** (≥0.7): wiring is a property of architecture+data → static wiring from a trained model's top-8 is principled |
+| A2 crystallization | deep overlap vs final: step1200 **0.817** → 2400 **0.914** → 3600 **0.962** (monotone; tv shrinking 0.126→0.018) | **PASS** (≥0.8 by 2400): wiring crystallizes by ~25-50% of training → profile-then-prune viable; paper figure |
+| A3 domain shift | top-8 overlap vs web: code **0.904** (tv 0.107), zh **0.856** (tv 0.170); shift grows with domain distance | **PASS**: wiring is domain-universal; weight shifts are modest and ordered (code < zh) — a secondary observation worth reporting |
+
+Implications locked in for Phase B: static wiring sourced from seed-1337
+final top-8 sets (available in results/attnres_124m/dynamics/dynamics.json);
+profile-then-prune becomes a Phase-C refinement; all three findings are
+paper-figure material.
