@@ -129,14 +129,8 @@ class SparseSinkDepthAttention(nn.Module):
         self.query = nn.Parameter(torch.zeros(dim))  # zero init -> uniform average
         self.key_gain = nn.Parameter(torch.ones(dim))
 
-    def forward(self, values: list[torch.Tensor], running_sum: torch.Tensor) -> torch.Tensor:
-        wired = [values[i] for i in self.wiring]
-        if self.n_rest > 0:
-            sink = (running_sum - torch.stack(wired).sum(dim=0)) / self.n_rest
-            candidates = [sink] + wired
-        else:
-            candidates = wired
-        v = _stack_sources(tuple(candidates))  # [C, B, T, d], C = K(+1)
+    def _attend(self, *candidates: torch.Tensor) -> torch.Tensor:
+        v = _stack_sources(candidates)  # [C, B, T, d], C = K(+1)
         cd = _compute_dtype(v.dtype)
         with torch.autocast(device_type=v.device.type, enabled=False):
             k = v.to(cd)
@@ -149,3 +143,18 @@ class SparseSinkDepthAttention(nn.Module):
                 logits = logits + bias.view(-1, 1, 1)
             alpha = torch.softmax(logits, dim=0)
             return torch.einsum("sbt,sbtd->btd", alpha.to(v.dtype), v)
+
+    def forward(self, values: list[torch.Tensor], running_sum: torch.Tensor) -> torch.Tensor:
+        wired = [values[i] for i in self.wiring]
+        if self.n_rest > 0:
+            sink = (running_sum - torch.stack(wired).sum(dim=0)) / self.n_rest
+            candidates = (sink, *wired)
+        else:
+            candidates = tuple(wired)
+        # Checkpointed like Full AttnRes: without it every consumer retains
+        # ~2.5 fp32 copies of its candidate stack for backward, which OOMs an
+        # 80GB A100 at k=8 (25 consumers x 10 candidates); the recompute of
+        # this small op chain is nearly free.
+        if torch.is_grad_enabled() and any(c.requires_grad for c in candidates):
+            return checkpoint(self._attend, *candidates, use_reentrant=False)
+        return self._attend(*candidates)
