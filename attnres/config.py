@@ -15,11 +15,17 @@ class ModelConfig:
     ffn_dim: int = 2048
     seq_len: int = 2048
     rope_theta: float = 10000.0
-    # "standard": h = h + f(norm(h)).  "attnres": each sublayer input is a
-    # learned softmax-attention mix over all preceding sublayer outputs.
+    # "standard":    h = h + f(norm(h))
+    # "attnres":     softmax attention over ALL preceding sublayer outputs
+    # "sparse_sink": softmax over {mean of non-wired sources (sink), k
+    #                statically wired sources} -- O(k) reads per sublayer
     residual_mode: str = "standard"
-    depth_attn_kernel: str = "softmax"  # softmax | sigmoid
+    depth_attn_kernel: str = "softmax"  # softmax | sigmoid (attnres only)
     depth_attn_key_norm: bool = True
+    # sparse_sink only: how many wired sources per consumer, and the ranked
+    # wiring file produced by analysis/extract_wiring.py
+    depth_attn_k: int = 8
+    depth_wiring_file: str = ""
     tie_embeddings: bool = True
     init_std: float = 0.02
     # RMSNorm eps. Zero-init AttnRes is EXACTLY function-preserving only at
@@ -33,9 +39,12 @@ class ModelConfig:
     norm_eps: float = 1e-6
 
     def __post_init__(self):
-        assert self.residual_mode in ("standard", "attnres")
+        assert self.residual_mode in ("standard", "attnres", "sparse_sink")
         assert self.depth_attn_kernel in ("softmax", "sigmoid")
         assert self.dim % self.n_head == 0
+        assert self.depth_attn_k >= 1
+        if self.residual_mode == "sparse_sink":
+            assert self.depth_wiring_file, "sparse_sink requires depth_wiring_file"
 
 
 @dataclass

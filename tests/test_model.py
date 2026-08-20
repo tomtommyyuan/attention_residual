@@ -1,9 +1,12 @@
 """Sanity tests: shapes, gradient flow, alpha normalization, optimizer coverage."""
 
+import json
+
 import pytest
 import torch
 
 from attnres import GPT, DepthAttention, ModelConfig
+from attnres.depth_attention import SparseSinkDepthAttention
 
 
 def small_cfg(**kwargs) -> ModelConfig:
@@ -61,6 +64,62 @@ def test_depth_param_overhead_is_tiny():
     n_attn = attn.num_params()["total"]
     consumers = 2 * 4 + 1  # 2 per block + final aggregation
     assert n_attn - n_base == consumers * (64 + 64)  # query + key gain each
+
+
+def _toy_wiring_file(tmp_path, n_layer=4, k=8):
+    wiring = [list(range(c + 1))[::-1][:k] for c in range(2 * n_layer + 1)]
+    path = tmp_path / "wiring.json"
+    path.write_text(json.dumps({"wiring": wiring}))
+    return str(path)
+
+
+def test_sparse_sink_forward_backward(tmp_path):
+    torch.manual_seed(0)
+    model = GPT(
+        small_cfg(
+            residual_mode="sparse_sink",
+            depth_attn_k=2,
+            depth_wiring_file=_toy_wiring_file(tmp_path, k=2),
+        )
+    )
+    x = torch.randint(0, 256, (2, 32))
+    y = torch.randint(0, 256, (2, 32))
+    logits, loss = model(x, y)
+    assert logits.shape == (2, 32, 256)
+    assert torch.isfinite(loss)
+    loss.backward()
+    for name, p in model.named_parameters():
+        assert p.grad is not None, f"no grad for {name} (DDP would hang on unused params)"
+        assert torch.isfinite(p.grad).all(), f"non-finite grad for {name}"
+
+
+def test_sparse_sink_init_output_is_uniform_average():
+    # zero-init + log(n_rest) sink bias must yield the exact mean of ALL
+    # sources, wired or not -- the function-preservation cornerstone
+    torch.manual_seed(0)
+    module = SparseSinkDepthAttention(dim=16, wiring=[0, 3], n_sources=6, eps=0.0).double()
+    values = [torch.randn(2, 8, 16, dtype=torch.float64) for _ in range(6)]
+    running = torch.stack(values).sum(dim=0)
+    out = module(values, running)
+    expected = torch.stack(values).mean(dim=0)
+    assert torch.allclose(out, expected, atol=1e-10)
+
+
+def test_sparse_sink_bf16_autocast(tmp_path):
+    torch.manual_seed(0)
+    model = GPT(
+        small_cfg(
+            residual_mode="sparse_sink",
+            depth_attn_k=2,
+            depth_wiring_file=_toy_wiring_file(tmp_path, k=2),
+        )
+    )
+    x = torch.randint(0, 256, (2, 32))
+    y = torch.randint(0, 256, (2, 32))
+    with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+        _, loss = model(x, y)
+    assert torch.isfinite(loss)
+    loss.backward()
 
 
 @pytest.mark.parametrize("mode", ["standard", "attnres"])

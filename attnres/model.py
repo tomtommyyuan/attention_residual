@@ -10,6 +10,7 @@ an attnres model with strict=False, which is what the exact-equivalence unit
 test exploits.
 """
 
+import json
 import math
 from dataclasses import dataclass
 
@@ -18,7 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .config import ModelConfig
-from .depth_attention import DepthAttention, _compute_dtype
+from .depth_attention import DepthAttention, SparseSinkDepthAttention, _compute_dtype
 
 
 class RMSNorm(nn.Module):
@@ -117,9 +118,10 @@ class GPT(nn.Module):
         if cfg.tie_embeddings:
             self.lm_head.weight = self.wte.weight
 
+        # One consumer per sublayer input (2 per block) + one final
+        # aggregation before the output norm / LM head.
+        n_consumers = 2 * cfg.n_layer + 1
         if cfg.residual_mode == "attnres":
-            # One consumer per sublayer input (2 per block) + one final
-            # aggregation before the output norm / LM head.
             self.depth_attns = nn.ModuleList(
                 DepthAttention(
                     cfg.dim,
@@ -127,7 +129,24 @@ class GPT(nn.Module):
                     key_norm=cfg.depth_attn_key_norm,
                     eps=cfg.norm_eps,
                 )
-                for _ in range(2 * cfg.n_layer + 1)
+                for _ in range(n_consumers)
+            )
+        elif cfg.residual_mode == "sparse_sink":
+            with open(cfg.depth_wiring_file) as f:
+                ranked = json.load(f)["wiring"]
+            assert len(ranked) == n_consumers, (
+                f"wiring file has {len(ranked)} consumers, model needs {n_consumers}"
+            )
+            # consumer c mixes sources 0..c; take the top-k prefix of its
+            # ranked wiring (early consumers may have fewer sources than k)
+            self.depth_attns = nn.ModuleList(
+                SparseSinkDepthAttention(
+                    cfg.dim,
+                    wiring=ranked[c][: min(cfg.depth_attn_k, c + 1)],
+                    n_sources=c + 1,
+                    eps=cfg.norm_eps,
+                )
+                for c in range(n_consumers)
             )
 
         cos, sin = _rope_tables(cfg.dim // cfg.n_head, cfg.seq_len, cfg.rope_theta)
@@ -175,23 +194,31 @@ class GPT(nn.Module):
                 h = h + v
             h = self.final_norm(h)
         else:
+            sparse = self.cfg.residual_mode == "sparse_sink"
             values = [emb]
+            running = emb  # sink source for sparse_sink; unused otherwise
 
-            def aggregate(consumer: DepthAttention) -> torch.Tensor:
+            def aggregate(idx: int) -> torch.Tensor:
+                consumer = self.depth_attns[idx]
+                if sparse:
+                    return consumer(values, running)
                 if stats is not None:
+                    # per-source alphas only exist for full attnres
                     stats.alphas.append(consumer.alpha_summary(values))
                 return consumer(values)
 
             for i, block in enumerate(self.blocks):
-                h = aggregate(self.depth_attns[2 * i])
+                h = aggregate(2 * i)
                 v = block.attn(block.attn_norm(h), cos, sin)
                 record_source(v)
                 values.append(v)
-                h = aggregate(self.depth_attns[2 * i + 1])
+                running = running + v
+                h = aggregate(2 * i + 1)
                 v = block.mlp(block.mlp_norm(h))
                 record_source(v)
                 values.append(v)
-            h = self.final_norm(aggregate(self.depth_attns[-1]))
+                running = running + v
+            h = self.final_norm(aggregate(len(self.depth_attns) - 1))
 
         logits = self.lm_head(h)
         loss = None

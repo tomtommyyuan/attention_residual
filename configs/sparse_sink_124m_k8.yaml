@@ -1,0 +1,42 @@
+# Sparse+Sink arm, k=8: softmax over {sink = mean of non-wired sources,
+# 8 statically wired sources per consumer}. Wiring extracted from the trained
+# Full-AttnRes seed-1337 model (analysis/extract_wiring.py; justified by
+# Phase-A results in PLAN.md). Everything else identical to the other arms.
+model:
+  vocab_size: 50304
+  n_layer: 12
+  n_head: 12
+  dim: 768
+  ffn_dim: 2048
+  seq_len: 2048
+  rope_theta: 10000.0
+  residual_mode: sparse_sink
+  depth_attn_k: 8
+  depth_wiring_file: configs/wiring_124m.json
+  depth_attn_kernel: softmax
+  depth_attn_key_norm: true
+  tie_embeddings: true
+  init_std: 0.02
+
+train:
+  run_name: sparse_sink_124m_k8
+  out_dir: out
+  data_dir: data/fineweb_edu
+  seed: 1337
+  micro_batch_size: 16
+  grad_accum_steps: 4
+  max_steps: 4800
+  lr: 6.0e-4
+  min_lr_ratio: 0.1
+  warmup_steps: 200
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  eval_every: 250
+  eval_tokens: 10485760
+  checkpoint_every: 1200
+  log_every: 10
+  wandb: false
+  wandb_project: attnres
+  compile: false

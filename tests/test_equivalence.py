@@ -8,6 +8,8 @@ so the logits of a zero-init AttnRes model must EXACTLY match a standard-
 residual model with the same weights. We verify this in float64.
 """
 
+import json
+
 import pytest
 import torch
 
@@ -68,6 +70,33 @@ def test_nonzero_query_changes_the_function():
         logits_base, _ = baseline(x)
         logits_attn, _ = attnres(x)
     assert not torch.allclose(logits_base, logits_attn, atol=1e-6, rtol=1e-6)
+
+
+def write_toy_wiring(tmp_path, n_layer=4, k=8):
+    # recent-first ranking; any wiring must preserve the zero-init function
+    wiring = [list(range(c + 1))[::-1][:k] for c in range(2 * n_layer + 1)]
+    path = tmp_path / "wiring.json"
+    path.write_text(json.dumps({"wiring": wiring}))
+    return str(path)
+
+
+@pytest.mark.parametrize("k", [1, 2, 8])
+def test_sparse_sink_zero_init_matches_standard_residuals(tmp_path, k):
+    wiring_file = write_toy_wiring(tmp_path, k=k)
+    torch.manual_seed(0)
+    baseline = GPT(small_cfg())
+    sparse = GPT(
+        small_cfg(residual_mode="sparse_sink", depth_attn_k=k, depth_wiring_file=wiring_file)
+    )
+    missing, unexpected = sparse.load_state_dict(baseline.state_dict(), strict=False)
+    assert unexpected == []
+    assert missing and all("depth_attns" in key for key in missing)
+    baseline, sparse = baseline.double(), sparse.double()
+    x = sample_input()
+    with torch.no_grad():
+        logits_base, _ = baseline(x)
+        logits_sparse, _ = sparse(x)
+    assert torch.allclose(logits_base, logits_sparse, atol=1e-8, rtol=1e-8)
 
 
 def test_losses_match_too():
