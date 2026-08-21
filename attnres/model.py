@@ -145,6 +145,7 @@ class GPT(nn.Module):
                     wiring=ranked[c][: min(cfg.depth_attn_k, c + 1)],
                     n_sources=c + 1,
                     eps=cfg.norm_eps,
+                    impl=cfg.depth_attn_impl,
                 )
                 for c in range(n_consumers)
             )

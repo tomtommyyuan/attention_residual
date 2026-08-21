@@ -26,6 +26,8 @@ class ModelConfig:
     # wiring file produced by analysis/extract_wiring.py
     depth_attn_k: int = 8
     depth_wiring_file: str = ""
+    # "triton" uses the fused kernel (CUDA only, falls back to eager elsewhere)
+    depth_attn_impl: str = "eager"
     tie_embeddings: bool = True
     init_std: float = 0.02
     # RMSNorm eps. Zero-init AttnRes is EXACTLY function-preserving only at
@@ -43,6 +45,7 @@ class ModelConfig:
         assert self.depth_attn_kernel in ("softmax", "sigmoid")
         assert self.dim % self.n_head == 0
         assert self.depth_attn_k >= 1
+        assert self.depth_attn_impl in ("eager", "triton")
         if self.residual_mode == "sparse_sink":
             assert self.depth_wiring_file, "sparse_sink requires depth_wiring_file"
 

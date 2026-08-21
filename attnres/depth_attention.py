@@ -28,6 +28,8 @@ import torch
 import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
 
+from .triton_sparse_sink import HAS_TRITON, sparse_sink_attend
+
 
 def _compute_dtype(dtype: torch.dtype) -> torch.dtype:
     # bf16/fp16 get an fp32 softmax; fp32/fp64 stay as-is
@@ -117,7 +119,9 @@ class SparseSinkDepthAttention(nn.Module):
     standard residuals therefore carries over unchanged (exact at norm eps=0).
     """
 
-    def __init__(self, dim: int, wiring: list[int], n_sources: int, eps: float = 1e-6):
+    def __init__(
+        self, dim: int, wiring: list[int], n_sources: int, eps: float = 1e-6, impl: str = "eager"
+    ):
         super().__init__()
         wiring = sorted(dict.fromkeys(int(i) for i in wiring))
         assert wiring and all(0 <= i < n_sources for i in wiring)
@@ -126,6 +130,7 @@ class SparseSinkDepthAttention(nn.Module):
         self.n_rest = n_sources - len(wiring)  # sources represented by the sink
         self.sink_bias = math.log(self.n_rest) if self.n_rest > 0 else 0.0
         self.eps = eps
+        self.impl = impl
         self.query = nn.Parameter(torch.zeros(dim))  # zero init -> uniform average
         self.key_gain = nn.Parameter(torch.ones(dim))
 
@@ -146,6 +151,13 @@ class SparseSinkDepthAttention(nn.Module):
 
     def forward(self, values: list[torch.Tensor], running_sum: torch.Tensor) -> torch.Tensor:
         wired = [values[i] for i in self.wiring]
+        if self.impl == "triton" and HAS_TRITON and values[0].is_cuda:
+            # fused kernel: sink + key-norm + biased softmax + mix in one
+            # launch; saves only alpha, so no checkpointing needed
+            qg = self.query * self.key_gain
+            return sparse_sink_attend(
+                qg, wired, running_sum, self.n_rest, self.sink_bias, self.eps
+            )
         if self.n_rest > 0:
             sink = (running_sum - torch.stack(wired).sum(dim=0)) / self.n_rest
             candidates = (sink, *wired)
