@@ -93,6 +93,17 @@ All run on ILC from existing checkpoints. Tool: `analysis/wiring_stability.py`.
 3. Implement Sparse+Sink behind a config flag; extend equivalence tests.
 4. Queue Phase B runs.
 
+## Phase B result: QUALITY GATE PASSED (2026-08-21)
+
+**sparse_sink k=8: val 3.2485** — recovers **85% of Full AttnRes's gain**
+(gate ≤3.253 passed with 0.0045 margin) while reading 9 candidates instead of
+up to 25. Dose-response across arms confirms the mass→gain correspondence:
+k4 57% mass → 56% gain; k8 ~80% mass → 85% gain; Full 100% → 100%.
+Single seed so far — seed-42 replication queued (deliberately reusing the
+seed-1337 wiring file: a cross-seed wiring-transfer test, predicted to work
+by Phase-A1's 0.83 overlap). Speed remains the open item (eager k8 is 4.3×
+baseline step time; checkpoint recompute + unfused op chain) → Triton kernel.
+
 ## Phase B interim results (2026-08-21)
 
 - **sparse_sink k=4: val 3.2547** (baseline 3.2664, Full 3.2453; gate ≤3.253).
