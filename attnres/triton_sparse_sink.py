@@ -8,6 +8,11 @@ sink-biased softmax, and writes the mixed output -- ~4 round-trips, one
 launch. Backward is a mirrored kernel; only alpha ([C, N] fp32, a few MB) is
 saved, so no activation checkpointing is needed.
 
+v2: the candidate stack is kept in bf16 whenever any wired input is
+half-precision (training), halving stack traffic -- fp32 inputs (parity
+tests) keep a strict fp32 path. The backward query-grad reduction is blocked
+ROWS rows per program, shrinking the partial buffer ~ROWS-fold.
+
 Numerics match the eager path: all math in fp32 registers, same sink-bias
 formulation, same eps placement. Parity is enforced by
 tests/test_triton_parity.py (CUDA only).
@@ -23,10 +28,12 @@ try:
 except ImportError:  # CPU-only environments (tests skip the triton path)
     HAS_TRITON = False
 
+
 if HAS_TRITON:
     # compile-time cap on candidates (sink + wired); k<=15. Must be a
     # tl.constexpr: Triton kernels cannot read plain Python globals.
     MAX_C = tl.constexpr(16)
+    BWD_ROWS = 8  # rows per backward program (query-grad partial reduction)
 
     @triton.jit
     def _fwd_kernel(
@@ -52,6 +59,7 @@ if HAS_TRITON:
             slot = c + 1 if HAS_SINK else c
             logits = tl.where(cidx == slot, logit, logits)
 
+        sink = tl.zeros([BLOCK_D], tl.float32)
         if HAS_SINK:
             run = tl.load(RUN + row * D + offs, mask=mask, other=0.0).to(tl.float32)
             sink = (run - sum_w) / n_rest
@@ -82,66 +90,81 @@ if HAS_TRITON:
         WIRED, RUN, QG, ALPHA, GOUT,
         GWIRED, GRUN, GQG_PART,
         K, n_rest, eps, N, D,
-        HAS_SINK: tl.constexpr, BLOCK_D: tl.constexpr,
+        HAS_SINK: tl.constexpr, BLOCK_D: tl.constexpr, ROWS: tl.constexpr,
     ):
-        row = tl.program_id(0)
+        pid = tl.program_id(0)
         offs = tl.arange(0, BLOCK_D)
         mask = offs < D
         cidx = tl.arange(0, MAX_C)
 
         qg = tl.load(QG + offs, mask=mask, other=0.0).to(tl.float32)
-        g = tl.load(GOUT + row * D + offs, mask=mask, other=0.0).to(tl.float32)
-
-        C = K + 1 if HAS_SINK else K
-        alpha = tl.full([MAX_C], 0.0, tl.float32)
-        for c in range(C):
-            a = tl.load(ALPHA + c * N + row)
-            alpha = tl.where(cidx == c, a, alpha)
-
-        # pass 1: g_alpha_c = g . v_c  (and rebuild the sink row)
-        galpha = tl.zeros([MAX_C], tl.float32)
-        sum_w = tl.zeros([BLOCK_D], tl.float32)
-        for c in range(K):
-            v = tl.load(WIRED + c * N * D + row * D + offs, mask=mask, other=0.0).to(tl.float32)
-            sum_w += v
-            slot = c + 1 if HAS_SINK else c
-            galpha = tl.where(cidx == slot, tl.sum(g * v), galpha)
-        sink = tl.zeros([BLOCK_D], tl.float32)
-        if HAS_SINK:
-            run = tl.load(RUN + row * D + offs, mask=mask, other=0.0).to(tl.float32)
-            sink = (run - sum_w) / n_rest
-            galpha = tl.where(cidx == 0, tl.sum(g * sink), galpha)
-
-        # softmax backward: g_logit = alpha * (g_alpha - sum(alpha * g_alpha))
-        dot = tl.sum(alpha * galpha)
-        glogit = alpha * (galpha - dot)
-
-        # pass 2: per-candidate value + key-path grads
         gqg = tl.zeros([BLOCK_D], tl.float32)
-        gsink = tl.zeros([BLOCK_D], tl.float32)
-        if HAS_SINK:
-            a0 = tl.sum(tl.where(cidx == 0, alpha, 0.0))
-            gl0 = tl.sum(tl.where(cidx == 0, glogit, 0.0))
-            rms = tl.sqrt(tl.sum(sink * sink) / D + eps)
-            # logit = (qg . v) / rms ; d/dv = qg/rms - v * (qg.v) / (D * rms^3)
-            qv = tl.sum(qg * sink)
-            gsink = a0 * g + gl0 * (qg / rms - sink * (qv / (D * rms * rms * rms)))
-            gqg += gl0 * (sink / rms)
-            tl.store(GRUN + row * D + offs, gsink / n_rest, mask=mask)
-        for c in range(K):
-            v = tl.load(WIRED + c * N * D + row * D + offs, mask=mask, other=0.0).to(tl.float32)
-            slot = c + 1 if HAS_SINK else c
-            a_c = tl.sum(tl.where(cidx == slot, alpha, 0.0))
-            gl_c = tl.sum(tl.where(cidx == slot, glogit, 0.0))
-            rms = tl.sqrt(tl.sum(v * v) / D + eps)
-            qv = tl.sum(qg * v)
-            gv = a_c * g + gl_c * (qg / rms - v * (qv / (D * rms * rms * rms)))
-            gqg += gl_c * (v / rms)
-            if HAS_SINK:
-                gv -= gsink / n_rest  # wired rows are subtracted inside the sink
-            tl.store(GWIRED + c * N * D + row * D + offs, gv, mask=mask)
 
-        tl.store(GQG_PART + row * BLOCK_D + offs, gqg, mask=mask)
+        for r in range(ROWS):
+            row = pid * ROWS + r
+            if row < N:
+                g = tl.load(GOUT + row * D + offs, mask=mask, other=0.0).to(tl.float32)
+
+                C = K + 1 if HAS_SINK else K
+                alpha = tl.full([MAX_C], 0.0, tl.float32)
+                for c in range(C):
+                    a = tl.load(ALPHA + c * N + row)
+                    alpha = tl.where(cidx == c, a, alpha)
+
+                # pass 1: g_alpha_c = g . v_c  (and rebuild the sink row)
+                galpha = tl.zeros([MAX_C], tl.float32)
+                sum_w = tl.zeros([BLOCK_D], tl.float32)
+                for c in range(K):
+                    v = tl.load(WIRED + c * N * D + row * D + offs, mask=mask, other=0.0).to(tl.float32)
+                    sum_w += v
+                    slot = c + 1 if HAS_SINK else c
+                    galpha = tl.where(cidx == slot, tl.sum(g * v), galpha)
+                sink = tl.zeros([BLOCK_D], tl.float32)
+                if HAS_SINK:
+                    run = tl.load(RUN + row * D + offs, mask=mask, other=0.0).to(tl.float32)
+                    sink = (run - sum_w) / n_rest
+                    galpha = tl.where(cidx == 0, tl.sum(g * sink), galpha)
+
+                # softmax backward: g_logit = alpha * (g_alpha - sum(alpha*g_alpha))
+                dot = tl.sum(alpha * galpha)
+                glogit = alpha * (galpha - dot)
+
+                # pass 2: per-candidate value + key-path grads
+                gsink = tl.zeros([BLOCK_D], tl.float32)
+                if HAS_SINK:
+                    a0 = tl.sum(tl.where(cidx == 0, alpha, 0.0))
+                    gl0 = tl.sum(tl.where(cidx == 0, glogit, 0.0))
+                    rms = tl.sqrt(tl.sum(sink * sink) / D + eps)
+                    # logit = (qg.v)/rms ; d/dv = qg/rms - v*(qg.v)/(D*rms^3)
+                    qv = tl.sum(qg * sink)
+                    gsink = a0 * g + gl0 * (qg / rms - sink * (qv / (D * rms * rms * rms)))
+                    gqg += gl0 * (sink / rms)
+                    tl.store(GRUN + row * D + offs, gsink / n_rest, mask=mask)
+                for c in range(K):
+                    v = tl.load(WIRED + c * N * D + row * D + offs, mask=mask, other=0.0).to(tl.float32)
+                    slot = c + 1 if HAS_SINK else c
+                    a_c = tl.sum(tl.where(cidx == slot, alpha, 0.0))
+                    gl_c = tl.sum(tl.where(cidx == slot, glogit, 0.0))
+                    rms = tl.sqrt(tl.sum(v * v) / D + eps)
+                    qv = tl.sum(qg * v)
+                    gv = a_c * g + gl_c * (qg / rms - v * (qv / (D * rms * rms * rms)))
+                    gqg += gl_c * (v / rms)
+                    if HAS_SINK:
+                        gv -= gsink / n_rest  # wired rows are subtracted inside the sink
+                    tl.store(
+                        GWIRED + c * N * D + row * D + offs,
+                        gv.to(GWIRED.dtype.element_ty),
+                        mask=mask,
+                    )
+
+        tl.store(GQG_PART + pid * BLOCK_D + offs, gqg, mask=mask)
+
+
+def _stack_dtype(wired):
+    for w in wired:
+        if w.dtype in (torch.bfloat16, torch.float16):
+            return w.dtype
+    return wired[0].dtype
 
 
 class _SparseSinkFn(torch.autograd.Function):
@@ -149,7 +172,8 @@ class _SparseSinkFn(torch.autograd.Function):
     def forward(ctx, qg, running, n_rest, sink_bias, eps, *wired):
         B, T, D = wired[0].shape
         N = B * T
-        wired_stack = torch.stack([w.reshape(N, D).float() for w in wired])  # [K, N, D]
+        sdt = _stack_dtype(wired)
+        wired_stack = torch.stack([w.reshape(N, D).to(sdt) for w in wired])  # [K, N, D]
         run = running.reshape(N, D).float().contiguous()
         has_sink = n_rest > 0
         K = len(wired)
@@ -160,7 +184,7 @@ class _SparseSinkFn(torch.autograd.Function):
         _fwd_kernel[(N,)](
             wired_stack, run, qg.float().contiguous(), out, alpha,
             K, float(max(n_rest, 1)), float(sink_bias), float(eps), N, D,
-            HAS_SINK=has_sink, BLOCK_D=BLOCK_D,
+            HAS_SINK=has_sink, BLOCK_D=BLOCK_D, num_warps=8,
         )
         ctx.save_for_backward(qg, running, alpha, *wired)
         ctx.meta = (n_rest, eps, B, T, D)
@@ -173,24 +197,24 @@ class _SparseSinkFn(torch.autograd.Function):
         N = B * T
         has_sink = n_rest > 0
         K = len(wired)
-        wired_stack = torch.stack([w.reshape(N, D).float() for w in wired])
+        sdt = _stack_dtype(wired)
+        wired_stack = torch.stack([w.reshape(N, D).to(sdt) for w in wired])
         run = running.reshape(N, D).float().contiguous()
         g = grad_out.reshape(N, D).float().contiguous()
         BLOCK_D = triton.next_power_of_2(D)
+        n_prog = triton.cdiv(N, BWD_ROWS)
         gwired = torch.empty_like(wired_stack)
         grun = torch.zeros_like(run) if has_sink else None
-        gqg_part = torch.empty(N, BLOCK_D, dtype=torch.float32, device=qg.device)
-        _bwd_kernel[(N,)](
+        gqg_part = torch.empty(n_prog, BLOCK_D, dtype=torch.float32, device=qg.device)
+        _bwd_kernel[(n_prog,)](
             wired_stack, run, qg.float().contiguous(), alpha, g,
             gwired, grun if has_sink else run, gqg_part,
             K, float(max(n_rest, 1)), float(eps), N, D,
-            HAS_SINK=has_sink, BLOCK_D=BLOCK_D,
+            HAS_SINK=has_sink, BLOCK_D=BLOCK_D, ROWS=BWD_ROWS, num_warps=8,
         )
         gqg = gqg_part[:, :D].sum(dim=0).to(qg.dtype)
         grun_out = grun.view(B, T, D).to(running.dtype) if has_sink else None
-        gws = [
-            gwired[i].view(B, T, D).to(wired[i].dtype) for i in range(K)
-        ]
+        gws = [gwired[i].view(B, T, D).to(wired[i].dtype) for i in range(K)]
         return (gqg, grun_out, None, None, None, *gws)
 
 

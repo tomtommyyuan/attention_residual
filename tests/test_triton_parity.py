@@ -57,6 +57,24 @@ def test_kernel_matches_eager(wiring, n_sources):
 
 
 @cuda_only
+def test_kernel_bf16_inputs_close_to_eager():
+    # training path: bf16 wired inputs -> bf16 candidate stack in the kernel,
+    # vs the eager path's fp32 promotion; agreement is bf16-quantization level
+    n_sources, wiring = 25, [0, 3, 7, 11, 14, 17, 20, 22]
+    g = torch.Generator(device="cuda").manual_seed(0)
+    values = [
+        torch.randn(2, 128, 768, device="cuda", generator=g, dtype=torch.float32).bfloat16().requires_grad_()
+        for _ in range(n_sources)
+    ]
+    running = torch.stack(values).float().sum(dim=0)
+    out_e, grads_e = run_module("eager", wiring, n_sources, values, running)
+    out_t, grads_t = run_module("triton", wiring, n_sources, values, running)
+    assert torch.allclose(out_e, out_t, atol=3e-2, rtol=3e-2), (out_e - out_t).abs().max()
+    for i, (ge, gt) in enumerate(zip(grads_e, grads_t)):
+        assert torch.allclose(ge.float(), gt.float(), atol=3e-2, rtol=3e-2), f"grad {i}"
+
+
+@cuda_only
 def test_full_model_parity(tmp_path):
     wiring = [list(range(c + 1))[::-1][:8] for c in range(2 * 4 + 1)]
     wf = tmp_path / "wiring.json"
