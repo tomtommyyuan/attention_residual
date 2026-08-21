@@ -63,6 +63,14 @@ All run on ILC from existing checkpoints. Tool: `analysis/wiring_stability.py`.
   mHC (public code), DAR (cite; implement only if time allows).
 - Skeleton analysis repeated at every scale (does the structure persist? does
   token-adaptivity emerge?) — this is the analysis section.
+- **Overhead-vs-scale crossover figure**: depth-attention step-time overhead
+  shrinks ~linearly-in-width relative to matmuls (O(k·d) traffic vs O(d²)
+  compute) while the quality gain persists per the paper's scaling law.
+  Measure the ratio at 124M/350M/760M with the fused kernel and plot the
+  net-win crossover. Honest framing: at 124M every depth-attention variant
+  (incl. Full) is net-negative on wall-clock; the contribution is pushing the
+  crossover down. The 1.4× Phase-B gate is an engineering gate
+  (implementation ≈ algorithm cost), not a net-efficiency claim.
 - Optional strengtheners: Muon arm, 8192-ctx arm.
 - Budget: ~400-700 A100-hours total. Within ILC quota if queued steadily.
 
