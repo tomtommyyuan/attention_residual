@@ -90,6 +90,46 @@ the paper's Block AttnRes + two-phase infrastructure exists to avoid at 48B;
 a fused kernel for the depth-attention op is the top engineering follow-up.
 Raw per-step logs for every run are under `results/<run>/log.jsonl`.
 
+## Sparse+Sink: exploiting the learned wiring (ours)
+
+Analysis of the trained AttnRes models (`analysis/per_token_alpha.py`,
+`analysis/wiring_stability.py`) shows the learned depth attention is a
+**static sparse skeleton plus a near-uniform tail**: a top-8 source set holds
+~80% of deep consumers' attention mass, per-token concentration matches the
+token-averaged one (no token-adaptivity), and the wiring is stable across
+seeds (0.83 overlap), training time (crystallized by 50% of training), and
+data domains (code 0.90, zh 0.86).
+
+`residual_mode: sparse_sink` freezes that skeleton: one softmax over {a
+**sink** candidate holding the mean of all non-wired sources (maintained
+O(1) from a running sum, with a fixed log(l−K) logit bias so zero init still
+exactly reproduces standard residuals) and k statically wired sources
+(`analysis/extract_wiring.py`)}. Static *wiring*, input-dependent *weights*.
+
+| arm | final val loss | vs baseline | of Full's gain | attention mass wired |
+|---|---|---|---|---|
+| Full AttnRes | 3.2453 | +0.0211 | 100% | 100% (reads up to 25 sources) |
+| **Sparse+Sink k=8** | 3.2485 | +0.0179 | **85%** | ~80% (reads 9) |
+| Sparse+Sink k=4 | 3.2547 | +0.0118 | 56% | ~57% (reads 5-6) |
+
+Gain recovery tracks the attention mass the wiring captures — the mechanism
+check for the skeleton+tail decomposition. (k=8 is single-seed so far;
+replication with cross-seed-transferred wiring is queued.)
+
+**Fused Triton kernel** (`attnres/triton_sparse_sink.py`, opt-in via
+`model.depth_attn_impl=triton`): sink construction, key RMS-norm, biased
+softmax, and mixing in one launch per consumer, saving only α — no
+activation-checkpoint recompute. Measured on A100: **7.0×** faster than the
+eager op; end-to-end Sparse+Sink k=8 drops from 4.29× baseline step time
+(eager) to **1.35×** (vs 6.6× for eager Full AttnRes). Parity: fp32
+elementwise ≤2e-4; bf16 relative-L2 <2%.
+
+Honest framing: at 124M *every* depth-attention variant costs more
+wall-clock than its gain is worth (~10% compute-equivalent); the overhead
+amortizes with width (O(k·d) traffic vs O(d²) matmuls) while the gain
+persists per the paper's scaling law — measuring that crossover across
+scales is the next phase (see [PLAN.md](PLAN.md)).
+
 ## Running on a SLURM cluster (Stanford HAIC)
 
 rsync the repo to `/hai/scratch/$USER/LLM_training`, then from the repo root:
@@ -164,10 +204,11 @@ norms (more uniform under AttnRes).
 The full research plan (Sparse+Sink design, phase gates, venue targets) lives
 in [PLAN.md](PLAN.md).
 
-- [ ] **Fused Triton kernel for the depth-attention op** — top priority now
-      that the naive implementation measures 6.6× step time at 124M
-- [ ] Third seed pair (the +0.0045 seed-42 gap needs it)
-- [ ] 350M scale point (adds a second loss-vs-compute point)
+- [x] Fused Triton kernel for the sparse depth-attention op (7.0× op speedup;
+      end-to-end 4.29× → 1.35×)
+- [ ] Seed-42 replication of Sparse+Sink k=8 (queued)
+- [ ] Third seed pair for the Full-AttnRes comparison
+- [ ] 350M/760M scale points + overhead-vs-scale crossover figure
 - [ ] Function-preserving **retrofit**: insert zero-init AttnRes into a
       pretrained checkpoint (Pythia/SmolLM2) and continue pretraining — the
       open question the paper leaves untouched
