@@ -18,14 +18,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from attnres.depth_attention import SparseSinkDepthAttention  # noqa: E402
 
 
-def bench(impl, B, T, dim, k, n_sources, iters):
+def bench(impl, B, T, dim, k, n_sources, iters, dtype):
     module = SparseSinkDepthAttention(
         dim=dim, wiring=list(range(0, 2 * k, 2))[:k], n_sources=n_sources, impl=impl
     ).cuda()
     with torch.no_grad():
         module.query.normal_(0, 0.5)
     values = [
-        torch.randn(B, T, dim, device="cuda", dtype=torch.bfloat16, requires_grad=True)
+        torch.randn(B, T, dim, device="cuda", dtype=dtype, requires_grad=True)
         for _ in range(n_sources)
     ]
     running = torch.stack(values).float().sum(dim=0)
@@ -57,12 +57,15 @@ def main():
     parser.add_argument("--k", type=int, default=8)
     parser.add_argument("--n_sources", type=int, default=25)
     parser.add_argument("--iters", type=int, default=20)
+    parser.add_argument("--dtype", choices=["bf16", "fp32"], default="bf16",
+                        help="use fp32 on pre-Ampere GPUs (no bf16)")
     args = parser.parse_args()
 
+    dtype = torch.bfloat16 if args.dtype == "bf16" else torch.float32
     impls = ["eager", "triton"] if args.impl == "both" else [args.impl]
     results = {}
     for impl in impls:
-        ms = bench(impl, args.batch, args.seq, args.dim, args.k, args.n_sources, args.iters)
+        ms = bench(impl, args.batch, args.seq, args.dim, args.k, args.n_sources, args.iters, dtype)
         results[impl] = ms
         n_consumers, micro = 2 * 12 + 1, 4
         print(
