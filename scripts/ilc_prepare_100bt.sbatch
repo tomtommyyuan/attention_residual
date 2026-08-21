@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Phase-C dataset: 15.5B FineWeb-Edu tokens from sample-100BT into a separate
 # dir (serves both the 350M/7.2B and 760M/15.2B token budgets; the 124M
-# dataset in data/fineweb_edu stays untouched). CPU-only -> il-cpu partition.
+# dataset in data/fineweb_edu stays untouched). CPU-only; partition il's
+# zero-GPU rule pushes it onto the turing/hyperion nodes (proven path --
+# il-cpu rejects qos=il).
 # Submit from the repo root: sbatch scripts/ilc_prepare_100bt.sbatch
 #SBATCH --job-name=attnres-prep100
 #SBATCH --account=infolab
-#SBATCH --partition=il-cpu
+#SBATCH --partition=il
 #SBATCH --qos=il
 #SBATCH -N 1
 #SBATCH -c 16
