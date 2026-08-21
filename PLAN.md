@@ -86,6 +86,22 @@ seed variance at 124M (unreported in the original paper), and it supports
 the fidelity claim (sparse tracks Full's per-seed ceiling). It stays in
 every table.
 
+## Phase C log
+
+- 2026-08-22: **baseline_350m TIMED OUT at step 12060/13700 (88%)** — the
+  ilc_train.sbatch default `--time=12:00:00` is sized for 124M runs; 350M at
+  149k tok/s needs ~13.4h. Resumed from ckpt_012001 (stateless data order +
+  resume validation made this lossless). **RULE: pass explicit `--time` at
+  submit for every ≥350M run**; Full-350M (multi-day) plans around the 7-day
+  il QoS cap with checkpoint chains. Trajectory healthy (val 2.8955@11500,
+  expect ~2.87-2.88 final).
+- 124M matrix in flight: s7 Full (eager, ~10.5h on 1×B200 — eager Full gains
+  nothing from B200: its bandwidth equals 4×A100 aggregate), s8 trio flowing,
+  s9 trio deliberately deferred (still preregistered, will run). Checkpoint
+  backup to HF (tomyuanyucheng/attention-residual-ckpts) running.
+- Summary collection is now `analysis/collect_summary.py` (run on cluster,
+  commit results/summary.json).
+
 ## Phase C fleet policy
 
 Hardware uniformity is required only WITHIN a compared pair (same seed's
