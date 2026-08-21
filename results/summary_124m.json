@@ -1,0 +1,132 @@
+{
+  "runs": {
+    "attnres_124m": {
+      "final_step": 4799,
+      "final_val_loss": 3.24529,
+      "tok_per_s": 62179,
+      "mfu": 0.0482,
+      "status": "done"
+    },
+    "attnres_124m_s42": {
+      "final_step": 4799,
+      "final_val_loss": 3.2699,
+      "tok_per_s": 62188,
+      "mfu": 0.0482,
+      "status": "done"
+    },
+    "baseline_124m": {
+      "final_step": 4799,
+      "final_val_loss": 3.26642,
+      "tok_per_s": 410768,
+      "mfu": 0.3186,
+      "status": "done"
+    },
+    "baseline_124m_s42": {
+      "final_step": 4799,
+      "final_val_loss": 3.27438,
+      "tok_per_s": 411380,
+      "mfu": 0.3191,
+      "status": "done"
+    },
+    "baseline_124m_s7_b200": {
+      "final_step": 4799,
+      "final_val_loss": 3.27144,
+      "tok_per_s": 361988,
+      "mfu": 0.1593,
+      "status": "done"
+    },
+    "baseline_350m": {
+      "final_step": 8420,
+      "final_val_loss": 2.99632,
+      "tok_per_s": 149041,
+      "mfu": 0.1872,
+      "status": "done"
+    },
+    "sparse_k4_s7_b200": {
+      "final_step": 4799,
+      "final_val_loss": 3.26371,
+      "tok_per_s": 284766,
+      "mfu": 0.1253,
+      "status": "done"
+    },
+    "sparse_k8_s7_b200": {
+      "final_step": 4799,
+      "final_val_loss": 3.25257,
+      "tok_per_s": 254343,
+      "mfu": 0.1119,
+      "status": "done"
+    },
+    "sparse_sink_124m_k4": {
+      "final_step": 4799,
+      "final_val_loss": 3.25466,
+      "tok_per_s": 168426,
+      "mfu": 0.1307,
+      "status": "done"
+    },
+    "sparse_sink_124m_k8": {
+      "final_step": 4799,
+      "final_val_loss": 3.24852,
+      "tok_per_s": 96462,
+      "mfu": 0.0748,
+      "status": "done"
+    },
+    "sparse_sink_124m_k8_s42": {
+      "final_step": 4799,
+      "final_val_loss": 3.27397,
+      "tok_per_s": 96459,
+      "mfu": 0.0748,
+      "status": "done"
+    }
+  },
+  "pairs": {
+    "seed1337_4xA100:attnres_124m": {
+      "baseline_val": 3.26642,
+      "arm_val": 3.24529,
+      "gap": 0.02113
+    },
+    "seed1337_4xA100:sparse_sink_124m_k8": {
+      "baseline_val": 3.26642,
+      "arm_val": 3.24852,
+      "gap": 0.0179
+    },
+    "seed1337_4xA100:sparse_sink_124m_k4": {
+      "baseline_val": 3.26642,
+      "arm_val": 3.25466,
+      "gap": 0.01176
+    },
+    "seed42_4xA100:attnres_124m_s42": {
+      "baseline_val": 3.27438,
+      "arm_val": 3.2699,
+      "gap": 0.00448
+    },
+    "seed42_4xA100:sparse_sink_124m_k8_s42": {
+      "baseline_val": 3.27438,
+      "arm_val": 3.27397,
+      "gap": 0.00041
+    },
+    "seed7_1xB200:sparse_k8_s7_b200": {
+      "baseline_val": 3.27144,
+      "arm_val": 3.25257,
+      "gap": 0.01887
+    },
+    "seed7_1xB200:sparse_k4_s7_b200": {
+      "baseline_val": 3.27144,
+      "arm_val": 3.26371,
+      "gap": 0.00773
+    }
+  },
+  "summary": {
+    "sparse_k8_gaps_by_seed": [
+      0.0179,
+      0.00041,
+      0.01887
+    ],
+    "sparse_k8_mean_gap": 0.01239,
+    "full_attnres_gaps_by_seed": [
+      0.02113,
+      0.00448
+    ],
+    "baseline_seed_noise_same_hw": 0.00796,
+    "note": "gap = baseline - arm within the same seed+hardware pair; positive = arm better"
+  }
+}
