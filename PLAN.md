@@ -74,6 +74,18 @@ All run on ILC from existing checkpoints. Tool: `analysis/wiring_stability.py`.
 - Optional strengtheners: Muon arm, 8192-ctx arm.
 - Budget: ~400-700 A100-hours total. Within ILC quota if queued steadily.
 
+## Preregistered seed protocol (124M, fixed 2026-08-21)
+
+Seed set for the 124M {baseline, Full AttnRes, Sparse+Sink k8} matrix is
+**{1337, 42, 7, 8, 9} — fixed in advance, all reported, no additions after
+this set completes**. A seed may be excluded only for outcome-independent
+reasons (divergence/NaN, hardware fault), never for an inconvenient result.
+Context: seed 42 shows ~no gain for Full AND sparse alike (+0.0045/+0.0004,
+both within the 0.008 noise floor) — that is data about the phenomenon's
+seed variance at 124M (unreported in the original paper), and it supports
+the fidelity claim (sparse tracks Full's per-seed ceiling). It stays in
+every table.
+
 ## Phase C fleet policy
 
 Hardware uniformity is required only WITHIN a compared pair (same seed's
