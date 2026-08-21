@@ -74,6 +74,18 @@ All run on ILC from existing checkpoints. Tool: `analysis/wiring_stability.py`.
 - Optional strengtheners: Muon arm, 8192-ctx arm.
 - Budget: ~400-700 A100-hours total. Within ILC quota if queued steadily.
 
+## Phase C fleet policy
+
+Hardware uniformity is required only WITHIN a compared pair (same seed's
+arms: same hardware, same impl, same precision path). Across seeds/scales,
+mix freely — 1×B200 (accum 16), 4×A100 (accum 4), 8×A100 whole node
+(accum 2) all consume identical per-step token sets and identical mean
+gradients (world × accum = 16); hardware-induced trajectory drift (~1e-2 by
+step 20, unbiased) folds into the seed-noise floor, and cross-hardware
+replication strengthens the result. Report hardware per run in the appendix;
+never compare throughput across hardware. Grab whatever the release windows
+offer; keep pending jobs queued at all times.
+
 ## Phase D — engineering + writing
 
 - Fused kernel (Triton) for sparse+sink: target ≤1.2× step time; also fix the
