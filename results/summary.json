@@ -1,0 +1,173 @@
+{
+  "runs": {
+    "attnres_124m": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.24529,
+      "tok_per_s": 62179,
+      "mfu": 0.0482,
+      "status": "done"
+    },
+    "attnres_124m_s42": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.2699,
+      "tok_per_s": 62188,
+      "mfu": 0.0482,
+      "status": "done"
+    },
+    "attnres_124m_s7_b200": {
+      "final_step": 1360,
+      "total_steps": 4800,
+      "final_val_loss": 3.61348,
+      "tok_per_s": 59222,
+      "mfu": 0.0261,
+      "status": "running"
+    },
+    "baseline_124m": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.26642,
+      "tok_per_s": 410768,
+      "mfu": 0.3186,
+      "status": "done"
+    },
+    "baseline_124m_s42": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.27438,
+      "tok_per_s": 411380,
+      "mfu": 0.3191,
+      "status": "done"
+    },
+    "baseline_124m_s7_b200": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.27144,
+      "tok_per_s": 361988,
+      "mfu": 0.1593,
+      "status": "done"
+    },
+    "baseline_124m_s8_b200": {
+      "final_step": 780,
+      "total_steps": 4800,
+      "final_val_loss": 3.98153,
+      "tok_per_s": 362266,
+      "mfu": 0.1594,
+      "status": "running"
+    },
+    "baseline_350m": {
+      "final_step": 12060,
+      "total_steps": 13700,
+      "final_val_loss": 2.89554,
+      "tok_per_s": 148940,
+      "mfu": 0.1871,
+      "status": "running"
+    },
+    "sparse_k4_s7_b200": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.26371,
+      "tok_per_s": 284766,
+      "mfu": 0.1253,
+      "status": "done"
+    },
+    "sparse_k8_s7_b200": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.25257,
+      "tok_per_s": 254343,
+      "mfu": 0.1119,
+      "status": "done"
+    },
+    "sparse_sink_124m_k4": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.25466,
+      "tok_per_s": 168426,
+      "mfu": 0.1307,
+      "status": "done"
+    },
+    "sparse_sink_124m_k8": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.24852,
+      "tok_per_s": 96462,
+      "mfu": 0.0748,
+      "status": "done"
+    },
+    "sparse_sink_124m_k8_s42": {
+      "final_step": 4799,
+      "total_steps": 4800,
+      "final_val_loss": 3.27397,
+      "tok_per_s": 96459,
+      "mfu": 0.0748,
+      "status": "done"
+    }
+  },
+  "pairs_124m": {
+    "seed1337_4xA100:attnres_124m": {
+      "baseline_val": 3.26642,
+      "arm_val": 3.24529,
+      "gap": 0.02113
+    },
+    "seed1337_4xA100:sparse_sink_124m_k8": {
+      "baseline_val": 3.26642,
+      "arm_val": 3.24852,
+      "gap": 0.0179
+    },
+    "seed1337_4xA100:sparse_sink_124m_k4": {
+      "baseline_val": 3.26642,
+      "arm_val": 3.25466,
+      "gap": 0.01176
+    },
+    "seed42_4xA100:attnres_124m_s42": {
+      "baseline_val": 3.27438,
+      "arm_val": 3.2699,
+      "gap": 0.00448
+    },
+    "seed42_4xA100:sparse_sink_124m_k8_s42": {
+      "baseline_val": 3.27438,
+      "arm_val": 3.27397,
+      "gap": 0.00041
+    },
+    "seed7_1xB200:sparse_k8_s7_b200": {
+      "baseline_val": 3.27144,
+      "arm_val": 3.25257,
+      "gap": 0.01887
+    },
+    "seed7_1xB200:sparse_k4_s7_b200": {
+      "baseline_val": 3.27144,
+      "arm_val": 3.26371,
+      "gap": 0.00773
+    }
+  },
+  "scale_350m": {
+    "baseline_350m": {
+      "final_step": 12060,
+      "total_steps": 13700,
+      "final_val_loss": 2.89554,
+      "tok_per_s": 148940,
+      "mfu": 0.1871,
+      "status": "running"
+    }
+  },
+  "summary": {
+    "sparse_k8_gaps": {
+      "seed1337_4xA100": 0.0179,
+      "seed42_4xA100": 0.00041,
+      "seed7_1xB200": 0.01887
+    },
+    "full_attnres_gaps": {
+      "seed1337_4xA100": 0.02113,
+      "seed42_4xA100": 0.00448
+    },
+    "sparse_k4_gaps": {
+      "seed1337_4xA100": 0.01176,
+      "seed7_1xB200": 0.00773
+    },
+    "sparse_k8_mean": 0.01239,
+    "full_mean": 0.01281,
+    "baseline_seed_noise_same_hw": 0.00796
+  }
+}
