@@ -1,0 +1,40 @@
+# Phase C: 350M-class control arm (24 layers, d=1024, ~360M total params).
+# Token budget ~7.2B (Chinchilla-20x) from the sample-100BT dataset.
+# On a single GPU override train.grad_accum_steps=16 to keep the global
+# batch at 524,288 tokens.
+model:
+  vocab_size: 50304
+  n_layer: 24
+  n_head: 16
+  dim: 1024
+  ffn_dim: 2816
+  seq_len: 2048
+  rope_theta: 10000.0
+  residual_mode: standard
+  depth_attn_kernel: softmax
+  depth_attn_key_norm: true
+  tie_embeddings: true
+  init_std: 0.02
+
+train:
+  run_name: baseline_350m
+  out_dir: out
+  data_dir: data/fineweb_edu_100bt
+  seed: 1337
+  micro_batch_size: 16
+  grad_accum_steps: 4
+  max_steps: 13700
+  lr: 3.0e-4
+  min_lr_ratio: 0.1
+  warmup_steps: 300
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  eval_every: 500
+  eval_tokens: 10485760
+  checkpoint_every: 2000
+  log_every: 10
+  wandb: false
+  wandb_project: attnres
+  compile: false
