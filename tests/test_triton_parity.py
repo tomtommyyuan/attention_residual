@@ -73,7 +73,9 @@ def test_full_model_parity(tmp_path):
     with torch.no_grad():
         for m in (eager, triton_m):
             for da in m.depth_attns:
-                da.query.normal_(0, 0.3, generator=torch.Generator().manual_seed(3))
+                da.query.normal_(
+                    0, 0.3, generator=torch.Generator(device="cuda").manual_seed(3)
+                )
     x = torch.randint(0, 256, (2, 32), device="cuda")
     le, _ = eager(x)
     lt, _ = triton_m(x)

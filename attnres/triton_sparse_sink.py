@@ -23,10 +23,10 @@ try:
 except ImportError:  # CPU-only environments (tests skip the triton path)
     HAS_TRITON = False
 
-MAX_C = 16  # compile-time cap on candidates (sink + wired); k<=15
-
-
 if HAS_TRITON:
+    # compile-time cap on candidates (sink + wired); k<=15. Must be a
+    # tl.constexpr: Triton kernels cannot read plain Python globals.
+    MAX_C = tl.constexpr(16)
 
     @triton.jit
     def _fwd_kernel(
