@@ -93,6 +93,25 @@ offer; keep pending jobs queued at all times.
 - arXiv preprint the moment 350M results are in; workshop submission in
   parallel; main-conference draft by early Jan.
 
+## Reference papers (checked 2026-08-20/21)
+
+| Paper | Link | Role for us |
+|---|---|---|
+| **Attention Residuals** (Kimi/Moonshot, 2026-03) | [arXiv:2603.15031](https://arxiv.org/abs/2603.15031) · [repo (PDF only)](https://github.com/MoonshotAI/Attention-Residuals) | The paper we reproduce and build on; no official training code |
+| **Dual Attention Residuals (DAR)** (2026-07) | [arXiv:2607.18730](https://arxiv.org/abs/2607.18730) | **The venue-bar calibrator**: first AttnRes follow-up — 0.1-1B dense + 7B MoE + routing ablations + representation analysis is what an accepted paper in this line shows. Dual-stream reciprocal addressing; does NOT touch sparsity/wiring analysis (our niche). Also a baseline reviewers may request |
+| Mixture-of-Depths Attention (ByteDance Seed) | [arXiv:2603.15619](https://arxiv.org/abs/2603.15619) | Same-day rival attacking depth dilution via cross-layer KV attention; cite + differentiate |
+| Hyper-Connections (ByteDance, ICLR 2025) | [arXiv:2409.19606](https://arxiv.org/abs/2409.19606) | Learned multi-stream residual mixing; planned Phase-C baseline (mHC variant used in the Kimi paper) |
+| DenseFormer (EPFL) | [arXiv:2402.02622](https://arxiv.org/abs/2402.02622) | Static depth-weighted averaging — fails per Kimi's ablation; our "static wiring ≠ static weights" argument leans on this distinction |
+| Value Residual Learning / ResFormer | [arXiv:2410.17897](https://arxiv.org/abs/2410.17897) | Adjacent residual-redesign lineage; related work |
+| DeepCrossAttention (Google, 2025-02) | [arXiv:2502.06785](https://arxiv.org/abs/2502.06785) | Pre-AttnRes depth-wise cross-attention; related work |
+| Kimi Linear / KDA | [arXiv:2510.26692](https://arxiv.org/abs/2510.26692) | Base architecture AttnRes was deployed into at 48B; context for scale claims |
+| CLSA "You Only Index Once" | [arXiv:2606.06467](https://arxiv.org/abs/2606.06467) | Cross-layer sparsity in the *sequence* dimension — name-collision risk, differentiate clearly |
+| IndexCache | [arXiv:2603.12201](https://arxiv.org/abs/2603.12201) | Same: cross-layer index reuse for sequence-sparse attention; related work |
+| FineWeb / FineWeb-Edu | [arXiv:2406.17557](https://arxiv.org/abs/2406.17557) | Training data |
+
+Re-run the novelty search (sparse/top-k depth attention, wiring analysis)
+before every milestone — this line ships monthly.
+
 ## Risk register
 
 - **Scooping** (field ships monthly): mitigate with early arXiv + narrow,
