@@ -17,10 +17,10 @@
       "status": "done"
     },
     "attnres_124m_s7_b200": {
-      "final_step": 1360,
+      "final_step": 1610,
       "total_steps": 4800,
-      "final_val_loss": 3.61348,
-      "tok_per_s": 59222,
+      "final_val_loss": 3.54893,
+      "tok_per_s": 59234,
       "mfu": 0.0261,
       "status": "running"
     },
@@ -49,11 +49,11 @@
       "status": "done"
     },
     "baseline_124m_s8_b200": {
-      "final_step": 780,
+      "final_step": 2280,
       "total_steps": 4800,
-      "final_val_loss": 3.98153,
-      "tok_per_s": 362266,
-      "mfu": 0.1594,
+      "final_val_loss": 3.47443,
+      "tok_per_s": 362544,
+      "mfu": 0.1595,
       "status": "running"
     },
     "baseline_350m": {
