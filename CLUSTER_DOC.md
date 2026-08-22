@@ -77,12 +77,11 @@ srun ... --gres=gpu:b200:1 ...
 
 ==================== FarmShare(L40S ×4,全校开放)====================
 
-登录与存储
+登录与存储(已实测,2026-08-23)
 ssh tomyyc@rice.stanford.edu       # SUNetID + Duo;全校可用,无需 account
-# 注意:AFS home 配额很小(几 GB),venv 装不下——repo 连同 .venv 一起放大存储
-# 首次登录先侦察存储和分区(路径/名字以实际输出为准):
-df -h ~ && df -h /farmshare 2>/dev/null
-sinfo -o "%P %l %G %D %N" | grep -iE "gpu|l40"     # GPU 分区名、时限、gres 标签
+# home = truenas NFS,221T 池子,空间无忧——repo、.venv、数据全放 ~ 即可
+# 分区(实测):normal*(默认)和 gpu,都是 2 天时限;6 个 GPU 节点,gres 标签
+# 就是普通的 gpu:4(不带型号);CPU 任务直接 -p normal
 
 环境(venv 直接建在 repo 里,同 Sherlock 流程)
 git clone https://github.com/tomtommyyuan/attention_residual.git LLM_training
@@ -90,8 +89,13 @@ cd LLM_training && python3 -m venv .venv && source .venv/bin/activate
 pip install --only-binary :all: torch --index-url https://download.pytorch.org/whl/cu124
 pip install --only-binary :all: -r requirements.txt && pytest tests/ -q
 # 数据(124M 集,~5.3GB;放 sbatch 或 srun 里跑,别占 login 节点):
-sbatch -p normal -c 8 --mem=32G -t 4:00:00 --wrap \
+sbatch -p normal --exclude=barley-01 -c 8 --mem=32G -t 4:00:00 --wrap \
   "cd $PWD && .venv/bin/python data/prepare_fineweb_edu.py --nproc 8"
+
+!!! 坑:barley-01 是病节点 !!!
+# 批处理任务落上去 5 秒即死,ExitCode 0:53(slurmstepd 打不开 home 上的输出
+# 文件,连 slurm-*.out 都不生成);wheat-* 节点全部正常。
+# 所有 sbatch 一律加 --exclude=barley-01(farmshare_train.sbatch 已内置)。
 
 提交训练(配额 4×L40S = 本项目 124M 配置的原生尺寸,accum=4 不用改)
 sbatch scripts/farmshare_train.sbatch configs/sparse_sink_124m_k8.yaml \
@@ -102,7 +106,8 @@ sbatch scripts/farmshare_train.sbatch configs/sparse_sink_124m_k8.yaml \
 - L40S 无 NVLink(PCIe),但 124M 的 DDP 通信量小,无所谓;
 - train.py 的 MFU 峰值自动识别 L40S(181 TFLOPS);
 - 全校共享、对 undergrad 天然友好——这里没有 yanay 也没有 Marcel;
-- 350M 别放这(48GB 显存 @ micro16 会 OOM,等 activation-checkpointing 上线再说)。
+- 350M 别放这(48GB 显存 @ micro16 会 OOM,等 activation-checkpointing 上线再说);
+- 2 天时限:Full-350M(kernel 化后 ~2.8 天)需要一次 --resume 接力,checkpoint 管线原生支持。
 
 
 

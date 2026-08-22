@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # One 124M training run on FarmShare's 4x L40S (this repo's original design
 # target). No --account/--qos needed on FarmShare.
-# VERIFY before first use (sinfo -o "%P %l %G"): the partition name and the
-# gres label below are the common defaults and may differ.
+# Partition/gres verified 2026-08-23: partitions `normal`/`gpu` (2-day limit),
+# gres label is plain gpu:4. barley-01 kills batch jobs on arrival (exit 0:53,
+# cannot open the output file on home) -- keep it excluded.
 # Usage (from the repo root):
 #   sbatch scripts/farmshare_train.sbatch <config.yaml> [overrides...]
 #SBATCH --job-name=attnres-train
 #SBATCH -p gpu
 #SBATCH -N 1
+#SBATCH --exclude=barley-01
 #SBATCH --gres=gpu:4
 #SBATCH -c 16
 #SBATCH --mem=128G
