@@ -75,5 +75,35 @@ srun ... --gres=gpu:a100:2 ...
 srun ... --gres=gpu:b200:1 ...
 
 
+==================== FarmShare(L40S ×4,全校开放)====================
+
+登录与存储
+ssh tomyyc@rice.stanford.edu       # SUNetID + Duo;全校可用,无需 account
+# 注意:AFS home 配额很小(几 GB),venv 装不下——repo 连同 .venv 一起放大存储
+# 首次登录先侦察存储和分区(路径/名字以实际输出为准):
+df -h ~ && df -h /farmshare 2>/dev/null
+sinfo -o "%P %l %G %D %N" | grep -iE "gpu|l40"     # GPU 分区名、时限、gres 标签
+
+环境(venv 直接建在 repo 里,同 Sherlock 流程)
+git clone https://github.com/tomtommyyuan/attention_residual.git LLM_training
+cd LLM_training && python3 -m venv .venv && source .venv/bin/activate
+pip install --only-binary :all: torch --index-url https://download.pytorch.org/whl/cu124
+pip install --only-binary :all: -r requirements.txt && pytest tests/ -q
+# 数据(124M 集,~5.3GB;放 sbatch 或 srun 里跑,别占 login 节点):
+sbatch -p normal -c 8 --mem=32G -t 4:00:00 --wrap \
+  "cd $PWD && .venv/bin/python data/prepare_fineweb_edu.py --nproc 8"
+
+提交训练(配额 4×L40S = 本项目 124M 配置的原生尺寸,accum=4 不用改)
+sbatch scripts/farmshare_train.sbatch configs/sparse_sink_124m_k8.yaml \
+  model.depth_attn_impl=triton train.seed=9 train.run_name=sparse_k8_s9_l40s
+# 脚本里的分区名/gres 标签是按常见值写的,第一次用前对照 sinfo 改两行
+
+要点
+- L40S 无 NVLink(PCIe),但 124M 的 DDP 通信量小,无所谓;
+- train.py 的 MFU 峰值自动识别 L40S(181 TFLOPS);
+- 全校共享、对 undergrad 天然友好——这里没有 yanay 也没有 Marcel;
+- 350M 别放这(48GB 显存 @ micro16 会 OOM,等 activation-checkpointing 上线再说)。
+
+
 
 
