@@ -15,6 +15,9 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR}"
 export PYTHONUNBUFFERED=1   # stdout is block-buffered under slurm redirection
+# reclaim allocator fragmentation -- 350M @ micro16 needs ~75GB of an A100's
+# 79GB and dies to fragmentation without this (numerically a no-op)
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 CONFIG="${1:?usage: sbatch scripts/ilc_train.sbatch <config.yaml> [overrides...]}"
 shift
 
