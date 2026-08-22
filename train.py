@@ -109,7 +109,6 @@ def main():
         live = {"model": asdict(mc), "train": asdict(tc)}
         for sec, key in [
             ("train", "micro_batch_size"),
-            ("train", "grad_accum_steps"),
             ("train", "seed"),
             ("train", "data_dir"),
             ("model", "seq_len"),
@@ -119,9 +118,18 @@ def main():
                     f"resume mismatch: {sec}.{key} checkpoint="
                     f"{saved.get(sec, {}).get(key)!r} != live={live[sec][key]!r}"
                 )
-        if ckpt.get("world_size", world) != world:
+        # The true data-order invariant is the PRODUCT world * grad_accum:
+        # any split with the same product consumes identical per-step token
+        # sets with identical mean gradients (only fp reduction order moves),
+        # so a world=1 checkpoint may legally resume on 2 or 4 GPUs.
+        saved_product = ckpt.get("world_size", world) * saved.get("train", {}).get(
+            "grad_accum_steps", tc.grad_accum_steps
+        )
+        live_product = world * tc.grad_accum_steps
+        if saved_product != live_product:
             raise SystemExit(
-                f"resume mismatch: world_size checkpoint={ckpt['world_size']} != live={world}"
+                f"resume mismatch: world*grad_accum checkpoint={saved_product} "
+                f"!= live={live_product} (data order would diverge)"
             )
         raw_model.load_state_dict(ckpt["model"])
         optimizer.load_state_dict(ckpt["optimizer"])
